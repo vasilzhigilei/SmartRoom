@@ -19,8 +19,8 @@ imageFrame.pack(padx=20,pady=10)
 button=tk.Button(window, text="Create", font=("Arial", 12), width=8)
 button2=tk.Button(window, text="Train", font=("Arial", 12), width=8)
 button3=tk.Button(window, text="Recognize", font=("Arial", 12), width=8)
-button.pack(padx=5, pady=10, side="left", expand=True);
-button2.pack(padx=5, pady=10, side="left", expand=True);
+button.pack(padx=5, pady=10, side="left", expand=True)
+button2.pack(padx=5, pady=10, side="left", expand=True)
 button3.pack(padx=5, pady=10, side="left", expand=True)
 lmain = tk.Label(imageFrame)
 lmain.grid(row=0, column=0)
@@ -59,6 +59,8 @@ data = b""
 payload_size = struct.calcsize(">L")
 print("payload_size: {}".format(payload_size))
 
+doorUnlocked = False
+
 while True:
     while len(data) < payload_size:
         #print("Recv: {}".format(len(data)))
@@ -95,6 +97,7 @@ while True:
         if (confidence < 50):
             if (Id == 1):
                 Id = "Vasil {0:.2f}%".format(round(100 - confidence, 2))
+                #opensesame function to open door should be implemented here
         else:
             Id = "Unknown {0:.2f}%".format(round(confidence, 2))
         # Put text describe who is in the picture
