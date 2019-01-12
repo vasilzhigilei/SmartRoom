@@ -7,7 +7,10 @@ on the inside of the door to pull the door handle. This solution may possibly be
 '''
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-import time # a better solution will be used in the future
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+
 import os
 import pickle
 import playsound
@@ -18,71 +21,112 @@ opts.add_argument("user-agent=Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA
 driver = webdriver.Chrome(chrome_options=opts)
 driver.set_window_size(300,500)
 
+def instantLogin():
+    """
+    Attempts to instantly login if one of the following is true:
+    (1) - driver window is already open and logged into the "open my door" page
+    (2) - updated cookies (within 7 days) exist and can be used
+    :return: True if either method works
+    """
+    try:
+        try: # in case method fbiOpenUp is called again while still open
+            driver.find_element_by_xpath("//*[@id='content']/div[2]/div/div/div/form[1]/ul/li/input[3]").click()
+            print("Door opened via instantLogin - click")
+            return True
+        except: # in case method fbiOpenUp first time called, but cookies up to date
+            driver.get("https://csg-web1.eservices.virginia.edu/login/")
+            if os.path.isfile("cookies.pkl"):
+                cookies = pickle.load(open("cookies.pkl", "rb"))
+                for cookie in cookies:
+                    driver.add_cookie(cookie)
+            driver.find_element_by_xpath('//*[@id="content"]/div[2]/a').click()
+            driver.find_element_by_xpath('//*[@id="mmenu"]/div[2]/table/tbody/tr[1]/td[2]/a').click()
+            driver.find_element_by_xpath("//*[@id='content']/div[2]/div/div/div/form[1]/ul/li/input[3]").click()
+            print("Door opened via instantLogin - cookies")
+            return True
+    except:
+        return False
+
+
+def initialLogin(username, password):
+    """
+    The first step in the process of logging in. Send the username and password to the UVa Netbadge system.
+    :param username: username of the user
+    :param password: password of the user
+    :return: True once done
+    """
+    driver.get("https://csg-web1.eservices.virginia.edu/login/")
+    driver.find_element_by_xpath('//*[@id="content"]/div[2]/a').click()
+    driver.find_element_by_xpath('//*[@id="user"]').send_keys(username)
+    driver.find_element_by_xpath('//*[@id="pass"]').send_keys(password)
+    driver.find_element_by_xpath('/html/body/main/div[2]/fieldset/form/input').click()
+    return True
+
+def duoConfirm():
+    """
+    Attempts to send a DUO push confirmation to the user's phone. Netbadge times this process out after three
+    minutes, after which the whole automation must rerun to get to this point again.
+    :return: True if DUO confirmed, False if not
+    """
+    minutes = 0
+    while minutes <= 2: # Netbadge times out DUO confirmation after three minutes
+        try:
+            driver.switch_to_frame(driver.find_element_by_xpath('//*[@id="duo_iframe"]'))
+            driver.find_element_by_xpath('//*[@id="login-form"]/div/div/label/input').click()
+            driver.find_element_by_xpath('//*[@id="login-form"]/fieldset[2]/div[1]/button').click()
+            driver.switch_to_default_content()
+            myElem = WebDriverWait(driver, 60).until(
+                EC.visibility_of_element_located((By.XPATH, '//*[@id="mmenu"]/div[2]/table/tbody/tr[1]/td[2]/a')))
+            return True
+        except:
+            print("Error! DUO Push not confirmed! Attempting to retry!")
+            minutes += 1
+    return False
+
 def fbiOpenUp(username, password):
     '''
     Automated script that runs through Chrome to access the "unlock my door" page for UVa dorms.
     Due to the fact that the page only opens on mobile devices, the user-agent of an Android is used.
     This function returns True if the door was unlocked (in other words, only the PIN is now needed to enter).
-
     Due to 2-step verification through an app called DUO, every 7 days the user must manually confirm the login of
-    the program. A possible solution may be to emulate an Android OS on desktop with a script that will always 
+    the program. A possible solution may be to emulate an Android OS on desktop with a script that will always
     accept the 2-step verification push.
     :param username: username used for Netbadge login
     :param password: password used for Netbadge login
     :return: True if door unlocked
     '''
-    try: #Try to click Open Door button right away if browser is already up, and login is within 7 days of DUO
-        driver.find_element_by_xpath("//*[@id='content']/div[2]/div/div/div/form[1]/ul/li/input[3]").click()
-        print("Door opened via first try")
-    except:
-        url = "https://csg-web1.eservices.virginia.edu/login/index.php"
-        driver.get(url)
 
-        if os.path.isfile("cookies.pkl"):
-            cookies = pickle.load(open("cookies.pkl", "rb"))
-            for cookie in cookies:
-                driver.add_cookie(cookie)
+    playsound.playsound("beepLow.wav") # initial beep for recognition in, for example, the facial recognition thing.
+    while True:
+        if instantLogin() == True:
+            doorOpened()
+            return True
 
-        #Click to login CS Gold WebCard Center
-        driver.find_element_by_xpath("//*[@href='sso.php']").click()
+        initialLogin(username, password)
 
-        try: #Try to open door right away, but for the first time before a browser is already open
-            driver.get("https://csg-web1.eservices.virginia.edu/student/openmydoor.php")
-            driver.find_element_by_xpath("//*[@id='content']/div[2]/div/div/div/form[1]/ul/li/input[3]").click()
-            print("Door opened via second try")
-        except: #Login through netbadge and DUO 2-step
-            try: #If not already logged in
-                # Netbadge username/password
-                driver.find_element_by_id("user").send_keys(username)
-                driver.find_element_by_id("pass").send_keys(password)
-                driver.find_element_by_xpath("//*[@id='loginBoxes']/fieldset[2]/span[2]/form/p[3]/input[1]").click()
+        driver.switch_to_frame(driver.find_element_by_xpath('//*[@id="duo_iframe"]'))
+        try:
+            WebDriverWait(driver, 60).until(EC.visibility_of_element_located((By.XPATH, '//*[@id="login-form"]/fieldset[2]/div[1]/button')))
+        except:
+            print("Timeout! Netbadge login took too long to show DUO frame!")
+            return False
+        driver.switch_to_default_content()
 
-                # Duo confirmation part
-                time.sleep(3)
-                iframe = driver.find_element_by_xpath("//*[@id='duo_iframe']")
-                driver.switch_to_frame(iframe)
-                duo_finished = False
-                while not duo_finished:
-                    try:
-                        driver.find_element_by_xpath("//*[@id='messages-view']/div/div[2]/div/span")
-                    except:
-                        driver.find_element_by_xpath('//*[@id="login-form"]/div/div/label/input').click()
-                        driver.find_element_by_xpath("//*[@id='login-form']/fieldset[2]/div[1]/button").click()
-                        try:
-                            driver.find_element_by_xpath('//*[@id="login-form"]/div/div/label/input')
-                        except:
-                            duo_finished = True
-                driver.switch_to_default_content()
-                print("Finished log in - try for netbadge and DUO")
-            except:
-                print("Error - try for netbadge and DUO")
+        if duoConfirm() == True: # only finish the automation if DUO confirmed, otherwise, restart whole process
+            driver.get('https://csg-web1.eservices.virginia.edu/student/openmydoor.php')
+            driver.find_element_by_xpath('//*[@id="content"]/div[2]/div/div/div/form[1]/ul/li/input[3]').click()
 
-            #Open door
-            driver.get("https://csg-web1.eservices.virginia.edu/student/openmydoor.php")
-            driver.find_element_by_xpath("//*[@id='content']/div[2]/div/div/div/form[1]/ul/li/input[3]").click()
-            print("Door opened via second except")
+            doorOpened()
+            return True
 
-    print("Door has been opened")
-    playsound.playsound("beep.wav")
+def doorOpened():
+    """
+    Prints a debugging door opened confirmation and plays a beep so the person attempting to enter the room knows when
+    to input their pin number.
+    Saves cookies for next time.
+    :return: True if function finishes successfully.
+    """
+    print("Door has been opened!")
+    playsound.playsound("beep.wav") # final beep of door open
     pickle.dump(driver.get_cookies(), open("cookies.pkl", "wb"))
     return True
