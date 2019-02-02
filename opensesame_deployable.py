@@ -63,7 +63,7 @@ def instantLogin():
         except: # in case method fbiOpenUp first time called, but cookies up to date
             driver.get("https://csg-web1.eservices.virginia.edu/login/")
             if os.path.isfile(os.path.expanduser('~')+"/Documents/opensesame/resources/cookies.pkl"):
-                cookies = pickle.load(open("resources/cookies.pkl", "rb"))
+                cookies = pickle.load(open(os.path.expanduser('~')+"/Documents/opensesame/resources/cookies.pkl", "rb"))
                 for cookie in cookies:
                     driver.add_cookie(cookie)
             driver.find_element_by_xpath('//*[@id="content"]/div[2]/a').click()
