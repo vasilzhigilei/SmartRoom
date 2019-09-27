@@ -8,3 +8,9 @@ In order to increase performance, multithreaded & multiprocessing implementation
 
 
 The highest performance version is local.py, where all work is done on a single device. This version is also the most developed for creating & training new users on the fly.
+
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/vasilzhigilei/SmartRoom/master/facialRecScreenshot.PNG" height="400px"></img>
+</p>
+<h6 align="center"><i>[Local version of program with working UI]</i></h6>
