@@ -4,4 +4,5 @@ System that uses facial recognition to unlock a dorm room door. Uses a server/cl
 
 Also includes a short program to run a fireplace video (for the monitor I had in my fireplace my first year :) )
 
-In order to increase performance, multithreaded & multiprocessing implementations were created.
+In order to increase performance, multithreaded & multiprocessing implementations were created for the server/client version.
+The highest performance version is local.py, where all work is done on a single device. This version is also the most developed for creating & training new users on the fly.
